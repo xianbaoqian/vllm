@@ -1,3 +1,6 @@
+env:
+  DO_NOT_TRACK: "1"
+
 group: Plugins
 depends_on: 
   - image-build
