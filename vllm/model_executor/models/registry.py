@@ -376,10 +376,6 @@ _MULTIMODAL_MODELS = {
         "FireRedASR2ForConditionalGeneration",
     ),
     "FunASRForConditionalGeneration": ("funasr", "FunASRForConditionalGeneration"),
-    "FireRedLIDForConditionalGeneration": (
-        "fireredlid",
-        "FireRedLIDForConditionalGeneration",
-    ),
     "FunAudioChatForConditionalGeneration": (
         "funaudiochat",
         "FunAudioChatForConditionalGeneration",
@@ -731,6 +727,7 @@ _PREVIOUSLY_SUPPORTED_MODELS = {
     "AquilaForCausalLM": "0.24.0",
     "Grok1ModelForCausalLM": "0.24.0",
     "Grok1ForCausalLM": "0.24.0",
+    "FireRedLIDForConditionalGeneration": "0.24.0",
 }
 
 _OOT_SUPPORTED_MODELS = {
