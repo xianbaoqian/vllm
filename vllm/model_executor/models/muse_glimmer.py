@@ -82,6 +82,7 @@ from vllm.multimodal.processing import (
 )
 from vllm.renderers import TokenizeParams
 from vllm.sequence import IntermediateTensors
+from vllm.transformers_utils.configs.muse_glimmer import default_vision_layer_types
 from vllm.transformers_utils.processors.muse_glimmer import MuseGlimmerProcessor
 from vllm.utils.tensor_schema import TensorSchema, TensorShape
 
@@ -707,11 +708,28 @@ class MuseGlimmerVisionEncoder(nn.Module):
         self.pos_emb_height = config.pos_emb_height
         self.pos_emb_width = config.pos_emb_width
         self.head_dim = hidden_size // config.num_attention_heads
-        self.layer_types = list(config.layer_types)
-        if len(self.layer_types) != config.num_hidden_layers:
-            raise ValueError(
-                "MuseGlimmer vision layer_types must match num_hidden_layers"
+        # `layer_types` is stored at the checkpoint's full depth, but the depth
+        # can be overridden underneath it: `hf_overrides`, and vLLM's own test
+        # harness, which forces vision num_hidden_layers to 1 unconditionally
+        # (tests/models/utils.py::dummy_hf_overrides -- note it does NOT honour
+        # use_original_num_layers for the vision tower). Re-derive the pattern
+        # for the depth actually being built, and say so: a mismatch that is
+        # NOT a deliberate override means the checkpoint disagrees with itself,
+        # and this model has been bitten before by config drift that changes
+        # behaviour without erroring.
+        layer_types = list(config.layer_types)
+        if len(layer_types) != config.num_hidden_layers:
+            logger.warning(
+                "MuseGlimmer vision layer_types has %d entries but "
+                "num_hidden_layers is %d; re-deriving the default pattern for "
+                "depth %d. Expected when the depth is overridden; otherwise the "
+                "config is inconsistent.",
+                len(layer_types),
+                config.num_hidden_layers,
+                config.num_hidden_layers,
             )
+            layer_types = default_vision_layer_types(config.num_hidden_layers)
+        self.layer_types = layer_types
         if self.head_dim % 4:
             raise ValueError("MuseGlimmer vision head dimension must be divisible by 4")
 
