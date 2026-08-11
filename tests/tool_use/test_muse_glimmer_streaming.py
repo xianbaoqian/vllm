@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+
 """Streaming + truncation regression tests for the MuseGlimmer parsers.
 
 Covers the streaming-mode defects fixed in
@@ -8,23 +11,33 @@ Covers the streaming-mode defects fixed in
   2. Truncation isolation (an unterminated ``to=self`` block containing an
      ``<atem:invoke>`` must NOT produce a tool call) — streaming AND non-streaming.
 """
+
 import json
 
 from vllm.reasoning.muse_glimmer_reasoning_parser import MuseGlimmerReasoningParser
 from vllm.tool_parsers.muse_glimmer_tool_parser import MuseGlimmerToolParser
 
-R = MuseGlimmerReasoningParser.__new__(MuseGlimmerReasoningParser)  # skip __init__ (needs tokenizer)
+R = MuseGlimmerReasoningParser.__new__(
+    MuseGlimmerReasoningParser
+)  # skip __init__ (needs tokenizer)
 T = MuseGlimmerToolParser.__new__(MuseGlimmerToolParser)
 
 # Any framing token that must NEVER appear in surfaced reasoning/content.
 _FRAMING = [
-    "<|start|>", "<|message|>", "<|eom|>", "<|eot|>",
-    "to=self", "to=user", "to=read.read", "<atem:",
+    "<|start|>",
+    "<|message|>",
+    "<|eom|>",
+    "<|eot|>",
+    "to=self",
+    "to=user",
+    "to=read.read",
+    "<atem:",
 ]
 
 
 class _FakeReq:
     """Minimal ChatCompletionRequest stand-in (no registered tools)."""
+
     tools = None
 
 
@@ -36,7 +49,7 @@ def _stream(raw: str, chunk: int):
     i = 0
     while i < len(raw):
         cur = raw[: i + chunk]
-        delta = cur[len(prev):]
+        delta = cur[len(prev) :]
         dm = MuseGlimmerReasoningParser.extract_reasoning_streaming(
             R, prev, cur, delta, [], [], []
         )
@@ -76,7 +89,9 @@ def _check_toolcall_stream(chunk):
     reasoning, content, tcs = _stream(RAW_TOOLCALL, chunk)
     # (a) no framing token leaks into reasoning or content
     for f in _FRAMING:
-        assert f not in reasoning, f"framing {f!r} leaked into reasoning (chunk={chunk})"
+        assert f not in reasoning, (
+            f"framing {f!r} leaked into reasoning (chunk={chunk})"
+        )
         assert f not in content, f"framing {f!r} leaked into content (chunk={chunk})"
     # (b) exactly one tool_call with correct name + args
     assert len(tcs) == 1, f"expected 1 tool_call, got {len(tcs)} (chunk={chunk})"
@@ -131,7 +146,9 @@ def test_truncated_cot_no_toolcall_nonstreaming():
     out = MuseGlimmerToolParser.extract_tool_calls(T, RAW_TRUNCATED, _FakeReq())
     assert not out.tools_called and out.tool_calls == []
     # partial reasoning must still be recovered by the reasoning parser
-    reasoning, _ = MuseGlimmerReasoningParser.extract_reasoning(R, RAW_TRUNCATED, _FakeReq())
+    reasoning, _ = MuseGlimmerReasoningParser.extract_reasoning(
+        R, RAW_TRUNCATED, _FakeReq()
+    )
     assert reasoning and "Maybe I should call" in reasoning, repr(reasoning)
 
 

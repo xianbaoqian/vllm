@@ -59,7 +59,6 @@ from vllm.logger import init_logger
 from vllm.tool_parsers.abstract_tool_parser import (
     Tool,
     ToolParser,
-    ToolParserManager,
 )
 
 logger = init_logger(__name__)
@@ -180,7 +179,6 @@ def _safe_open_body(body: str) -> str:
     return body[: len(body) - partial] if partial else body
 
 
-@ToolParserManager.register_module("muse_glimmer")
 class MuseGlimmerToolParser(ToolParser):
     # MuseGlimmer emits ATEM markup around tool-call arguments. The generic
     # named/required tool_choice path in vllm/parser/abstract_parser.py assigns

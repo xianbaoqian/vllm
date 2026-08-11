@@ -1,10 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+
 """Unit test the MuseGlimmer ATEM tool parser against realistic model output."""
+
 import json
 
 # Import parser class directly (avoid full vllm import cost where possible)
 from vllm.tool_parsers.muse_glimmer_tool_parser import MuseGlimmerToolParser
 
-P = MuseGlimmerToolParser.__new__(MuseGlimmerToolParser)  # skip __init__ (needs tokenizer)
+P = MuseGlimmerToolParser.__new__(
+    MuseGlimmerToolParser
+)  # skip __init__ (needs tokenizer)
+
 
 def show(title, out):
     print(f"\n### {title}")
@@ -14,14 +21,15 @@ def show(title, out):
     if out.content:
         print("  content:", repr(out.content[:80]))
 
+
 # --- Case 1: single tool call (to=<tool>) ---
 o1 = (
-    'to=self<|message|>Let me check the weather.<|eom|>'
-    '<|start|>assistant to=weather.get<|message|>'
+    "to=self<|message|>Let me check the weather.<|eom|>"
+    "<|start|>assistant to=weather.get<|message|>"
     '<atem:function_calls>\n<atem:invoke name="weather.get">\n'
     '<atem:parameter name="city">Paris</atem:parameter>\n'
     '<atem:parameter name="units">celsius</atem:parameter>\n'
-    '</atem:invoke>\n</atem:function_calls><|eot|>'
+    "</atem:invoke>\n</atem:function_calls><|eot|>"
 )
 out1 = MuseGlimmerToolParser.extract_tool_calls(P, o1, None)
 show("single call + reasoning", out1)
@@ -32,16 +40,16 @@ assert a1 == {"city": "Paris", "units": "celsius"}, a1
 
 # --- Case 2: parallel calls (multiple invokes, <|eom|> separated) ---
 o2 = (
-    '<|start|>assistant to=math.add<|message|>'
+    "<|start|>assistant to=math.add<|message|>"
     '<atem:function_calls>\n<atem:invoke name="math.add">\n'
     '<atem:parameter name="a">1</atem:parameter>\n'
     '<atem:parameter name="b">2</atem:parameter>\n'
-    '</atem:invoke>\n</atem:function_calls><|eom|>'
-    '<|start|>assistant to=math.mul<|message|>'
+    "</atem:invoke>\n</atem:function_calls><|eom|>"
+    "<|start|>assistant to=math.mul<|message|>"
     '<atem:function_calls>\n<atem:invoke name="math.mul">\n'
     '<atem:parameter name="a">3</atem:parameter>\n'
     '<atem:parameter name="b">4</atem:parameter>\n'
-    '</atem:invoke>\n</atem:function_calls><|eot|>'
+    "</atem:invoke>\n</atem:function_calls><|eot|>"
 )
 out2 = MuseGlimmerToolParser.extract_tool_calls(P, o2, None)
 show("parallel calls", out2)
@@ -54,7 +62,7 @@ assert json.loads(out2.tool_calls[0].function.arguments) == {"a": 1, "b": 2}
 o3 = (
     'to=self<|message|>I could call <atem:invoke name="evil.fn">'
     '<atem:parameter name="x">1</atem:parameter></atem:invoke> but I will not.<|eom|>'
-    '<|start|>assistant to=user<|message|>The answer is 42.<|eot|>'
+    "<|start|>assistant to=user<|message|>The answer is 42.<|eot|>"
 )
 out3 = MuseGlimmerToolParser.extract_tool_calls(P, o3, None)
 show("echoed-invoke-in-reasoning (must be 0 calls)", out3)
@@ -62,18 +70,18 @@ assert not out3.tools_called, "channel scoping failed — echoed invoke parsed!"
 assert out3.content == "The answer is 42.", repr(out3.content)
 
 # --- Case 4: plain answer, no tools ---
-o4 = 'to=user<|message|>Just a plain answer.<|eot|>'
+o4 = "to=user<|message|>Just a plain answer.<|eot|>"
 out4 = MuseGlimmerToolParser.extract_tool_calls(P, o4, None)
 show("plain answer", out4)
 assert not out4.tools_called
 
 # --- Case 5: object/array JSON param value ---
 o5 = (
-    '<|start|>assistant to=api.call<|message|>'
+    "<|start|>assistant to=api.call<|message|>"
     '<atem:function_calls>\n<atem:invoke name="api.call">\n'
     '<atem:parameter name="payload">{"nested": [1, 2, 3]}</atem:parameter>\n'
     '<atem:parameter name="flag">true</atem:parameter>\n'
-    '</atem:invoke>\n</atem:function_calls><|eot|>'
+    "</atem:invoke>\n</atem:function_calls><|eot|>"
 )
 out5 = MuseGlimmerToolParser.extract_tool_calls(P, o5, None)
 show("json object/array/bool params", out5)
