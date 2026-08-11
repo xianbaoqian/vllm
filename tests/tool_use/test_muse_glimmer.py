@@ -28,9 +28,13 @@ from types import SimpleNamespace
 from vllm.reasoning.muse_glimmer_reasoning_parser import MuseGlimmerReasoningParser
 from vllm.tool_parsers.muse_glimmer_tool_parser import MuseGlimmerToolParser
 
-# __init__ needs a tokenizer; every method under test is reachable without one.
-R = MuseGlimmerReasoningParser.__new__(MuseGlimmerReasoningParser)
-T = MuseGlimmerToolParser.__new__(MuseGlimmerToolParser)
+# Neither base __init__ touches the tokenizer -- both just store it, and `vocab`
+# is a lazy cached_property these paths never reach -- so None is enough. Going
+# through __init__ (rather than __new__) is what initializes the streaming
+# cursors; skipping it leaves the streaming methods reading attributes that do
+# not exist.
+R = MuseGlimmerReasoningParser(None)
+T = MuseGlimmerToolParser(None)
 
 # Any framing token that must NEVER appear in surfaced reasoning/content.
 _FRAMING = [
@@ -210,23 +214,38 @@ def test_reasoning_then_parallel_calls():
 
 def _stream(raw: str, chunk: int):
     """Feed ``raw`` incrementally in ``chunk``-char steps through BOTH streaming
-    parsers; return (reasoning, content, tool_calls)."""
+    parsers; return (reasoning, content, tool_calls).
+
+    Fresh parsers per call: the streaming cursors are per-request state, and
+    vLLM constructs one parser per request. Sharing them across cases would let
+    one test's emitted-prefix bleed into the next.
+    """
+    r = MuseGlimmerReasoningParser(None)
+    t = MuseGlimmerToolParser(None)
     reasoning, content, toolcalls = [], [], []
     prev = ""
     i = 0
     while i < len(raw):
         cur = raw[: i + chunk]
         delta = cur[len(prev) :]
+        handed_off_before = r._tool_handoff_done
         dm = MuseGlimmerReasoningParser.extract_reasoning_streaming(
-            R, prev, cur, delta, [], [], []
+            r, prev, cur, delta, [], [], []
         )
+        # On the hand-off delta the reasoning parser deliberately returns the
+        # raw tool channel -- framing included -- as `.content`. That payload
+        # addresses the tool parser, and DelegatingParser.parse_delta replaces
+        # the whole DeltaMessage with the tool parser's rather than sending it
+        # on, so the client never sees it. Skip it here too, so `content` in
+        # this harness means what the client would actually receive.
+        handed_off_now = r._tool_handoff_done and not handed_off_before
         if dm is not None:
             if getattr(dm, "reasoning", None):
                 reasoning.append(dm.reasoning)
-            if getattr(dm, "content", None):
+            if getattr(dm, "content", None) and not handed_off_now:
                 content.append(dm.content)
         dt = MuseGlimmerToolParser.extract_tool_calls_streaming(
-            T, prev, cur, delta, [], [], [], _FakeReq()
+            t, prev, cur, delta, [], [], [], _FakeReq()
         )
         if dt is not None and dt.tool_calls:
             toolcalls.extend(dt.tool_calls)
@@ -343,12 +362,18 @@ def test_namespaced_name_preserved():
     assert out.tool_calls[0].function.name == "weather.get"
 
 
-def test_trailing_segment_unambiguous():
-    # emitted foo.get_weather; registered get_weather (bare) -> bind to get_weather
+def test_trailing_segment_not_rewritten():
+    """A leaf-only match is deliberately NOT collapsed.
+
+    Only the doubled form ``X.X`` is safe to collapse. Binding on the trailing
+    segment alone would dispatch an emitted ``weather.get`` to a registered
+    ``calendar.get`` -- a unique leaf match, and the wrong tool. See
+    MuseGlimmerToolParser._normalize_name.
+    """
     out = MuseGlimmerToolParser.extract_tool_calls(
         T, _call("foo.get_weather"), _req("get_weather")
     )
-    assert out.tool_calls[0].function.name == "get_weather"
+    assert out.tool_calls[0].function.name == "foo.get_weather"
 
 
 def test_trailing_segment_ambiguous_left_alone():

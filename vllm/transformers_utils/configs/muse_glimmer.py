@@ -27,6 +27,21 @@ def _default_no_rope_layers(num_hidden_layers: int) -> list[int]:
     ]
 
 
+def default_vision_layer_types(num_hidden_layers: int) -> list[str]:
+    """Vision attention pattern: every 4th layer, and the last, attend fully.
+
+    Shared with the model so a depth override cannot silently produce a
+    different pattern than the config would have derived for that depth.
+    """
+    stride = 4
+    return [
+        "full_attention"
+        if (i + 1) % stride == 0 or i == num_hidden_layers - 1
+        else "sliding_attention"
+        for i in range(num_hidden_layers)
+    ]
+
+
 class MuseGlimmerTextConfig(PretrainedConfig):
     model_type = "muse_glimmer_text"
     keys_to_ignore_at_inference = ["past_key_values"]
@@ -167,13 +182,7 @@ class MuseGlimmerVisionConfig(PretrainedConfig):
         self.adapter_dim = adapter_dim
         self.layer_norm_eps = layer_norm_eps
         if layer_types is None:
-            stride = 4
-            layer_types = [
-                "full_attention"
-                if (i + 1) % stride == 0 or i == num_hidden_layers - 1
-                else "sliding_attention"
-                for i in range(num_hidden_layers)
-            ]
+            layer_types = default_vision_layer_types(num_hidden_layers)
         self.layer_types = layer_types
 
 
