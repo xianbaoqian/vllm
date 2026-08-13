@@ -38,7 +38,7 @@ MINIMAL_MODEL_ARCH_LIST = [
     "InternVLChatModel",
     "InternLM2ForRewardModel",
     "TransformersMultiModalForCausalLM",
-    "PrithviGeoSpatialMAE",
+    "Terratorch",
     "UltravoxModel",
     "DeepSeekMTPModel",
     "XLMRobertaModel",
@@ -104,7 +104,7 @@ def can_initialize(
             "which is not configured in test environment"
         )
 
-    if model_arch in ("PrithviGeoSpatialMAE", "Terratorch"):
+    if model_arch == "Terratorch":
         import importlib.util
 
         if importlib.util.find_spec("terratorch") is None:
