@@ -523,7 +523,6 @@ _TEXT_GENERATION_EXAMPLE_MODELS = {
         "EssentialAI/rnj-1-instruct",
         is_available_online=False,
     ),
-    "RWForCausalLM": _HfExamplesInfo("tiiuae/falcon-40b"),
     "SarvamMoEForCausalLM": _HfExamplesInfo(
         "sarvamai/sarvam-30b",
         trust_remote_code=True,
