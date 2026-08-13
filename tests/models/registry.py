@@ -240,10 +240,6 @@ _TEXT_GENERATION_EXAMPLE_MODELS = {
         min_transformers_version="5.9.0",
     ),
     "CwmForCausalLM": _HfExamplesInfo("facebook/cwm", min_transformers_version="4.58"),
-    # FIXME: databricks/dbrx-instruct has been deleted
-    "DbrxForCausalLM": _HfExamplesInfo(
-        "databricks/dbrx-instruct", is_available_online=False
-    ),
     "DeciLMForCausalLM": _HfExamplesInfo(
         "nvidia/Llama-3_3-Nemotron-Super-49B-v1",
         trust_remote_code=True,
