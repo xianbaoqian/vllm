@@ -600,7 +600,6 @@ _EMBEDDING_EXAMPLE_MODELS = {
     ),
     "Gemma2Model": _HfExamplesInfo("BAAI/bge-multilingual-gemma2"),
     "Gemma3TextModel": _HfExamplesInfo("google/embeddinggemma-300m"),
-    "GritLM": _HfExamplesInfo("parasail-ai/GritLM-7B-vllm"),
     "GteModel": _HfExamplesInfo(
         "Snowflake/snowflake-arctic-embed-m-v2.0", trust_remote_code=True
     ),
