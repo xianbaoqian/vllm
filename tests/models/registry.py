@@ -273,7 +273,6 @@ _TEXT_GENERATION_EXAMPLE_MODELS = {
     "ExaoneMoeForCausalLM": _HfExamplesInfo(
         "LGAI-EXAONE/K-EXAONE-236B-A23B", min_transformers_version="5.1.0"
     ),
-    "Fairseq2LlamaForCausalLM": _HfExamplesInfo("mgleize/fairseq2-dummy-Llama-3.2-1B"),
     "FalconForCausalLM": _HfExamplesInfo("tiiuae/falcon-7b"),
     "FalconH1ForCausalLM": _HfExamplesInfo("tiiuae/Falcon-H1-0.5B-Base"),
     "FlexOlmoForCausalLM": _HfExamplesInfo("allenai/Flex-reddit-2x7B-1T"),
@@ -813,7 +812,6 @@ _MULTIMODAL_EXAMPLE_MODELS = {
         "Salesforce/blip2-opt-2.7b",
         extras={"6b": "Salesforce/blip2-opt-6.7b"},
     ),
-    "ChameleonForConditionalGeneration": _HfExamplesInfo("facebook/chameleon-7b"),
     "Cheers": _HfExamplesInfo(
         "ai9stars/Cheers",
         trust_remote_code=True,

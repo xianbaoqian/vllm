@@ -102,7 +102,6 @@ _TEXT_GENERATION_MODELS = {
     "ExaoneForCausalLM": ("exaone", "ExaoneForCausalLM"),
     "Exaone4ForCausalLM": ("exaone4", "Exaone4ForCausalLM"),
     "ExaoneMoeForCausalLM": ("exaone_moe", "ExaoneMoeForCausalLM"),
-    "Fairseq2LlamaForCausalLM": ("fairseq2_llama", "Fairseq2LlamaForCausalLM"),
     "FalconForCausalLM": ("falcon", "FalconForCausalLM"),
     "FalconMambaForCausalLM": ("mamba", "MambaForCausalLM"),
     "FalconH1ForCausalLM": ("falcon_h1", "FalconH1ForCausalLM"),
@@ -360,10 +359,6 @@ _MULTIMODAL_MODELS = {
     "BagelForConditionalGeneration": ("bagel", "BagelForConditionalGeneration"),
     "BeeForConditionalGeneration": ("bee", "BeeForConditionalGeneration"),
     "Blip2ForConditionalGeneration": ("blip2", "Blip2ForConditionalGeneration"),
-    "ChameleonForConditionalGeneration": (
-        "chameleon",
-        "ChameleonForConditionalGeneration",
-    ),
     "Cheers": ("cheers", "CheersForConditionalGeneration"),
     "CheersForConditionalGeneration": ("cheers", "CheersForConditionalGeneration"),
     "Cohere2VisionForConditionalGeneration": (
@@ -809,6 +804,8 @@ _PREVIOUSLY_SUPPORTED_MODELS = {
     "FuyuForCausalLM": "0.25.0",
     "Plamo2ForCausalLM": "0.26.0",
     "OuroForCausalLM": "0.26.0",
+    "ChameleonForConditionalGeneration": "0.27.1",
+    "Fairseq2LlamaForCausalLM": "0.27.1",
 }
 
 _OOT_SUPPORTED_MODELS = {

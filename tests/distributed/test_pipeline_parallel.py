@@ -165,7 +165,6 @@ EMBEDDING_MODELS = {  # type: ignore[var-annotated]
 MULTIMODAL_MODELS = {
     # [Decoder-only]
     "Salesforce/blip2-opt-6.7b": PPTestSettings.fast(),
-    "facebook/chameleon-7b": PPTestSettings.fast(),
     "zai-org/glm-4v-9b": PPTestSettings.fast(),
     "OpenGVLab/InternVL3-1B": PPTestSettings.fast(),
     "llava-hf/llava-1.5-7b-hf": PPTestSettings.fast(),
