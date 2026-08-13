@@ -214,7 +214,6 @@ _TEXT_GENERATION_MODELS = {
     "Step1ForCausalLM": ("step1", "Step1ForCausalLM"),
     "Step3TextForCausalLM": ("step3_text", "Step3TextForCausalLM"),
     "Step3p5ForCausalLM": ("step3p5", "Step3p5ForCausalLM"),
-    "StableLMEpochForCausalLM": ("stablelm", "StablelmForCausalLM"),
     "StableLmForCausalLM": ("stablelm", "StablelmForCausalLM"),
     "SolarForCausalLM": ("solar", "SolarForCausalLM"),
     "TeleChat2ForCausalLM": ("telechat2", "TeleChat2ForCausalLM"),
@@ -809,6 +808,7 @@ _PREVIOUSLY_SUPPORTED_MODELS = {
     "FuyuForCausalLM": "0.25.0",
     "Plamo2ForCausalLM": "0.26.0",
     "OuroForCausalLM": "0.26.0",
+    "StableLMEpochForCausalLM": "0.27.1",
 }
 
 _OOT_SUPPORTED_MODELS = {
