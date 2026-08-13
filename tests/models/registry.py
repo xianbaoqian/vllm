@@ -966,10 +966,6 @@ _MULTIMODAL_EXAMPLE_MODELS = {
         max_transformers_version="4.48",
         transformers_version_reason={"hf": "HF model is not compatible."},
     ),
-    "HCXVisionForCausalLM": _HfExamplesInfo(
-        "naver-hyperclovax/HyperCLOVAX-SEED-Vision-Instruct-3B",
-        trust_remote_code=True,
-    ),
     "HCXVisionV2ForCausalLM": _HfExamplesInfo(
         "naver-hyperclovax/HyperCLOVAX-SEED-Think-32B",
         trust_remote_code=True,

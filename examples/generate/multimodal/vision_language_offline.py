@@ -801,109 +801,6 @@ def run_hunyuan_vl(questions: list[str], modality: str) -> ModelRequestData:
     )
 
 
-# naver-hyperclovax/HyperCLOVAX-SEED-Vision-Instruct-3B
-def run_hyperclovax_seed_vision(
-    questions: list[str], modality: str
-) -> ModelRequestData:
-    model_name = "naver-hyperclovax/HyperCLOVAX-SEED-Vision-Instruct-3B"
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
-    mm_limit = {"image": 1, "video": 1} if modality == "image+video" else {modality: 1}
-    engine_args = EngineArgs(
-        model=model_name,
-        trust_remote_code=True,
-        max_model_len=16384 if modality in ("video", "image+video") else 8192,
-        limit_mm_per_prompt=mm_limit,
-    )
-
-    messages = list()
-    for question in questions:
-        if modality == "image":
-            """
-            ocr: List the words in the image in raster order.
-                Even if the word order feels unnatural for reading,
-                the model will handle it as long as it follows raster order.
-                e.g. "Naver, CLOVA, bigshane"
-            lens_keywords: List the entity names in the image.
-                e.g. "iPhone"
-            lens_local_keywords: List the entity names with quads in the image.
-                e.g. "[0.07, 0.21, 0.92, 0.90] iPhone"
-            """
-            messages.append(
-                [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "ocr": "",
-                                "lens_keywords": "",
-                                "lens_local_keywords": "",
-                            },
-                            {
-                                "type": "text",
-                                "text": question,
-                            },
-                        ],
-                    }
-                ]
-            )
-        elif modality == "video":
-            messages.append(
-                [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "video",
-                            },
-                            {
-                                "type": "text",
-                                "text": question,
-                            },
-                        ],
-                    }
-                ]
-            )
-        elif modality == "image+video":
-            messages.append(
-                [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "ocr": "",
-                                "lens_keywords": "",
-                                "lens_local_keywords": "",
-                            },
-                            {
-                                "type": "video",
-                            },
-                            {
-                                "type": "text",
-                                "text": question,
-                            },
-                        ],
-                    }
-                ]
-            )
-        else:
-            raise ValueError(f"Unsupported modality: {modality}")
-
-    prompts = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-
-    return ModelRequestData(
-        engine_args=engine_args,
-        prompts=prompts,
-        stop_token_ids=None,
-    )
-
-
 # Idefics3-8B-Llama3
 def run_idefics3(questions: list[str], modality: str) -> ModelRequestData:
     assert modality == "image"
@@ -2350,7 +2247,6 @@ model_example_map = {
     "glm_ocr": run_glm_ocr,
     "h2ovl_chat": run_h2ovl,
     "hunyuan_vl": run_hunyuan_vl,
-    "hyperclovax_seed_vision": run_hyperclovax_seed_vision,
     "idefics3": run_idefics3,
     "interns1": run_interns1,
     "interns1_pro": run_interns1_pro,

@@ -134,7 +134,6 @@ _TEXT_GENERATION_MODELS = {
     "HunYuanMoEV1ForCausalLM": ("hunyuan_v1", "HunYuanMoEV1ForCausalLM"),
     "HunYuanDenseV1ForCausalLM": ("hunyuan_v1", "HunYuanDenseV1ForCausalLM"),
     "HYV3ForCausalLM": ("hy_v3", "HYV3ForCausalLM"),
-    "HCXVisionForCausalLM": ("hyperclovax_vision", "HCXVisionForCausalLM"),
     "HCXVisionV2ForCausalLM": ("hyperclovax_vision_v2", "HCXVisionV2ForCausalLM"),
     "HyperCLOVAXForCausalLM": ("hyperclovax", "HyperCLOVAXForCausalLM"),
     "InternLM2ForCausalLM": ("internlm2", "InternLM2ForCausalLM"),
@@ -809,6 +808,7 @@ _PREVIOUSLY_SUPPORTED_MODELS = {
     "FuyuForCausalLM": "0.25.0",
     "Plamo2ForCausalLM": "0.26.0",
     "OuroForCausalLM": "0.26.0",
+    "HCXVisionForCausalLM": "0.27.1",
 }
 
 _OOT_SUPPORTED_MODELS = {
