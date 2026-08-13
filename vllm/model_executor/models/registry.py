@@ -364,8 +364,6 @@ _MULTIMODAL_MODELS = {
         "chameleon",
         "ChameleonForConditionalGeneration",
     ),
-    "Cheers": ("cheers", "CheersForConditionalGeneration"),
-    "CheersForConditionalGeneration": ("cheers", "CheersForConditionalGeneration"),
     "Cohere2VisionForConditionalGeneration": (
         "cohere2_vision",
         "Cohere2VisionForConditionalGeneration",
@@ -809,6 +807,8 @@ _PREVIOUSLY_SUPPORTED_MODELS = {
     "FuyuForCausalLM": "0.25.0",
     "Plamo2ForCausalLM": "0.26.0",
     "OuroForCausalLM": "0.26.0",
+    "Cheers": "0.27.1",
+    "CheersForConditionalGeneration": "0.27.1",
 }
 
 _OOT_SUPPORTED_MODELS = {

@@ -158,33 +158,6 @@ def run_chameleon(questions: list[str], modality: str) -> ModelRequestData:
     )
 
 
-# Cheers
-def run_cheers(questions: list[str], modality: str) -> ModelRequestData:
-    assert modality == "image"
-    model_name = "ai9stars/Cheers"
-
-    engine_args = EngineArgs(
-        model=model_name,
-        trust_remote_code=True,
-        max_model_len=4096,
-        limit_mm_per_prompt={modality: 1},
-    )
-
-    prompts = [
-        (
-            f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
-            f"<|im_start|>user\n<|image_pad|>{question}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
-        )
-        for question in questions
-    ]
-
-    return ModelRequestData(
-        engine_args=engine_args,
-        prompts=prompts,
-    )
-
-
 def run_command_a_vision(questions: list[str], modality: str) -> ModelRequestData:
     assert modality == "image"
 
@@ -2328,7 +2301,6 @@ def run_step_vl(questions: list[str], modality: str) -> ModelRequestData:
 model_example_map = {
     "aria": run_aria,
     "bagel": run_bagel,
-    "cheers": run_cheers,
     "bee": run_bee,
     "blip-2": run_blip2,
     "chameleon": run_chameleon,
