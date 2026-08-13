@@ -8,7 +8,7 @@ than JSON, so the two parsers are tested together: the reasoning parser strips
 the reasoning span and forwards the remaining channels as content, and the tool
 parser reads ATEM markup out of those channels.
 
-Four areas, in order:
+Five areas, in order:
 
   1. non-streaming tool-call extraction, including channel scoping (an
      ``<atem:invoke>`` echoed inside reasoning must never become a call);
@@ -16,7 +16,9 @@ Four areas, in order:
      ``content=None`` and starving the tool parser;
   3. streaming, where markers routinely straddle chunk boundaries, plus
      truncation isolation for an unterminated ``to=self`` block;
-  4. tool-name normalization against the tools registered on the request.
+  4. tool-name normalization against the tools registered on the request;
+  5. malformed calls seen in production, where the arguments would otherwise be
+     dropped and the client answers "invalid arguments".
 
 These drive the parsers directly and need no checkpoint. The tests that require
 a real tokenizer live in ``test_muse_glimmer_parse_delta.py``.
@@ -384,3 +386,103 @@ def test_exact_match_kept():
         T, _call("get_weather"), _req("get_weather")
     )
     assert out.tool_calls[0].function.name == "get_weather"
+
+
+# ------------------------------------------------------- malformed tool calls
+#
+# Two shapes seen in production against a tool-calling client. Both lose the
+# arguments silently: the call reaches the client with none, and the model is
+# told its own output was invalid.
+
+
+def _req_typed(name, **types):
+    """A request registering ``name`` with declared parameter types."""
+    return SimpleNamespace(
+        tools=[
+            SimpleNamespace(
+                function=SimpleNamespace(
+                    name=name,
+                    parameters={
+                        "type": "object",
+                        "properties": {k: {"type": v} for k, v in types.items()},
+                    },
+                )
+            )
+        ]
+    )
+
+
+def _raw(recipient, invoke):
+    """One tool-call turn whose ``<atem:invoke>`` block is given verbatim."""
+    return (
+        f"<|start|>assistant to={recipient}<|message|>"
+        f"<atem:function_calls>\n{invoke}\n</atem:function_calls>"
+    )
+
+
+def test_string_parameter_is_not_json_decoded():
+    # A JSONL line written to a file is a string, not an object. Decoding it
+    # loses the distinction the client relies on and the call is rejected with
+    # "Expected string, got {...} at [content]".
+    line = '{"span": "s 1", "name": "250/2016"}'
+    out = MuseGlimmerToolParser.extract_tool_calls(
+        T,
+        _raw(
+            "write",
+            '<atem:invoke name="write">\n'
+            '<atem:parameter name="filePath">/tmp/map.jsonl</atem:parameter>\n'
+            f'<atem:parameter name="content">{line}</atem:parameter>\n'
+            "</atem:invoke>",
+        ),
+        _req_typed("write", filePath="string", content="string"),
+    )
+    args = json.loads(out.tool_calls[0].function.arguments)
+    assert args["content"] == line, args["content"]
+
+
+def test_undeclared_parameter_still_decodes():
+    # Nothing changes for parameters the tool does not declare as strings.
+    out = MuseGlimmerToolParser.extract_tool_calls(
+        T,
+        _raw(
+            "search",
+            '<atem:invoke name="search">\n'
+            '<atem:parameter name="limit">5</atem:parameter>\n'
+            "</atem:invoke>",
+        ),
+        _req_typed("search", limit="integer"),
+    )
+    assert json.loads(out.tool_calls[0].function.arguments) == {"limit": 5}
+
+
+def test_swallowed_parameter_tag_recovers_argument():
+    # The model swallowed the opening <atem:parameter> tag and glued its name
+    # onto the invoke name; the value is left as the body of the block.
+    out = MuseGlimmerToolParser.extract_tool_calls(
+        T,
+        _raw(
+            "read.filePath",
+            '<atem:invoke name="read.filePath">/tmp/norm.txt</atem:parameter>\n'
+            "</atem:invoke>",
+        ),
+        _req_typed("read", filePath="string"),
+    )
+    fn = out.tool_calls[0].function
+    assert fn.name == "read", fn.name
+    assert json.loads(fn.arguments) == {"filePath": "/tmp/norm.txt"}, fn.arguments
+
+
+def test_parameterless_namespaced_call_is_left_alone():
+    # A namespaced tool with no parameters must not be mistaken for the
+    # swallowed-tag shape: there is no body to recover.
+    out = MuseGlimmerToolParser.extract_tool_calls(
+        T,
+        _raw(
+            "weather.get",
+            '<atem:invoke name="weather.get">\n</atem:invoke>',
+        ),
+        _req("weather.get"),
+    )
+    fn = out.tool_calls[0].function
+    assert fn.name == "weather.get"
+    assert json.loads(fn.arguments) == {}
