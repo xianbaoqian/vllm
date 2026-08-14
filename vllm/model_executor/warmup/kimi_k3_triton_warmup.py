@@ -19,7 +19,16 @@ logger = init_logger(__name__)
 
 
 def _get_kda_layer(worker: Worker) -> KimiK3DeltaAttention | None:
-    from vllm.models.kimi_k3.nvidia.kda import KimiK3DeltaAttention
+    # Imported before we know the served model has KDA layers at all, and this warmup
+    # runs for EVERY model whenever enable_jit_warmup is on. So an unimportable Kimi-K3
+    # kills the worker for an unrelated model -- which is what evicting deepseek_v4 does,
+    # since kimi_k3/nvidia/model.py:94 imports DeepseekV4MegaMoEExperts at module level.
+    # Warming up a model we are not serving must never be fatal.
+    try:
+        from vllm.models.kimi_k3.nvidia.kda import KimiK3DeltaAttention
+    except ImportError:
+        logger.debug("Kimi-K3 unavailable; skipping its Triton warmup")
+        return None
 
     compilation_config = getattr(
         worker.model_runner,
