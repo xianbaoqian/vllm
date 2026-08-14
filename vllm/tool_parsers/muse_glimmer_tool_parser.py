@@ -98,6 +98,7 @@ _PARAM_RE = re.compile(
     r'<atem:parameter\b[^>]*?\bname="(?P<key>[^"]+)"[^>]*?>(?P<value>.*?)</atem:parameter>',
     re.DOTALL,
 )
+_INVOKE_OPEN_RE = re.compile(r"<atem:invoke\b[^>]*>", re.DOTALL)
 _FUNCTION_CALLS_OPEN = "<atem:function_calls>"
 
 
@@ -309,14 +310,48 @@ class MuseGlimmerToolParser(ToolParser):
         return names
 
     @staticmethod
+    def _registered_param_types(
+        request: ChatCompletionRequest | None,
+    ) -> dict[str, dict[str, str]]:
+        """Declared parameter types: ``{tool: {parameter: "string" | ...}}``.
+
+        Used only to keep a parameter the tool declares as a string from being
+        JSON-decoded; see ``_parse_tool_calls``.
+        """
+        out: dict[str, dict[str, str]] = {}
+        tools = getattr(request, "tools", None) if request is not None else None
+        for t in tools or []:
+            fn = getattr(t, "function", None) or t
+            name = getattr(fn, "name", None)
+            params = getattr(fn, "parameters", None)
+            if name is None and isinstance(fn, dict):
+                name = fn.get("name")
+                params = fn.get("parameters")
+            if not name or not isinstance(params, dict):
+                continue
+            props = params.get("properties")
+            if not isinstance(props, dict):
+                continue
+            declared = {
+                key: schema["type"]
+                for key, schema in props.items()
+                if isinstance(schema, dict) and isinstance(schema.get("type"), str)
+            }
+            if declared:
+                out[name] = declared
+        return out
+
+    @staticmethod
     def _normalize_name(emitted: str, registered: set[str]) -> str:
         """Map an emitted ATEM invoke name back to a registered tool name.
 
         When a client registers a BARE name (e.g. ``get_weather``) the shipped
-        chat template renders the valid recipient as ``"get_weather.*"``, and
-        the model duly emits ``get_weather.get_weather``. Collapsing that
-        doubled form is safe: head and tail are identical and the collapsed
-        name is registered.
+        chat template renders the valid recipient as ``"get_weather.*"``, so the
+        model emits ``<head>.<tail>``. Two forms show up in practice: the
+        doubled ``get_weather.get_weather``, and -- when the model swallows the
+        opening ``<atem:parameter>`` tag, see ``_parse_tool_calls`` -- the name
+        of the first parameter, as in ``read.filePath``. Both name the tool in
+        the HEAD, so a head that is itself registered is the tool that was meant.
 
         Anything else is passed through unchanged. Matching on the trailing
         segment alone is NOT safe -- an emitted ``weather.get`` against a
@@ -325,8 +360,8 @@ class MuseGlimmerToolParser(ToolParser):
         """
         if not registered or emitted in registered:
             return emitted
-        head, sep, tail = emitted.partition(".")
-        if sep and head == tail and head in registered:
+        head, sep, _tail = emitted.partition(".")
+        if sep and head in registered:
             return head
         logger.warning(
             "MuseGlimmer: emitted tool name %r does not match any registered tool; "
@@ -337,19 +372,60 @@ class MuseGlimmerToolParser(ToolParser):
 
     @classmethod
     def _parse_tool_calls(
-        cls, text: str, registered: set[str] | None = None
+        cls,
+        text: str,
+        registered: set[str] | None = None,
+        param_types: dict[str, dict[str, str]] | None = None,
     ) -> list[ToolCall]:
         registered = registered or set()
+        param_types = param_types or {}
         scoped = cls._tool_channel_text(text)
         tool_calls: list[ToolCall] = []
         for invoke in _INVOKE_RE.findall(scoped):
             name_m = _NAME_RE.search(invoke)
             if not name_m:
                 continue
-            name = cls._normalize_name(name_m.group(1), registered)
+            emitted_name = name_m.group(1)
+            name = cls._normalize_name(emitted_name, registered)
+            declared = param_types.get(name, {})
             args: dict = {}
             for pm in _PARAM_RE.finditer(invoke):
-                args[pm.group("key")] = _decode_value(pm.group("value"))
+                key, raw = pm.group("key"), pm.group("value")
+                # A parameter the tool declares as a string stays a string.
+                # Decoding it loses the distinction the client relies on: a
+                # JSONL line written to a file arrives as a dict and the call is
+                # rejected with "Expected string, got {...}".
+                args[key] = (
+                    raw if declared.get(key) == "string" else _decode_value(raw)
+                )
+
+            # The model sometimes swallows the opening <atem:parameter> tag and
+            # glues its name onto the invoke name, leaving the value as the body
+            # of the block:
+            #
+            #     <atem:invoke name="read.filePath">/path/to/file</atem:parameter>
+            #     </atem:invoke>
+            #
+            # No <atem:parameter> pair matches, so the call would otherwise
+            # arrive with no arguments at all ("Missing key at [filePath]").
+            if not args and "." in emitted_name:
+                key = emitted_name.partition(".")[2]
+                body = _INVOKE_OPEN_RE.sub("", invoke, count=1)
+                body = body.replace("</atem:parameter>", "")
+                body = body.replace("</atem:invoke>", "").strip()
+                if key and body:
+                    args[key] = (
+                        body
+                        if declared.get(key) == "string"
+                        else _decode_value(body)
+                    )
+                    logger.warning(
+                        "MuseGlimmer: recovered a swallowed parameter tag, "
+                        "%r -> %s(%s=...)",
+                        emitted_name,
+                        name,
+                        key,
+                    )
             tool_calls.append(
                 ToolCall(
                     function=FunctionCall(
@@ -387,7 +463,9 @@ class MuseGlimmerToolParser(ToolParser):
             )
         try:
             registered = self._registered_names(request)
-            tool_calls = self._parse_tool_calls(model_output, registered)
+            tool_calls = self._parse_tool_calls(
+                model_output, registered, self._registered_param_types(request)
+            )
             if not tool_calls:
                 # A tool block was opened but no COMPLETE
                 # <atem:invoke>...</atem:invoke> parsed -- typically a truncated
@@ -451,7 +529,9 @@ class MuseGlimmerToolParser(ToolParser):
 
         try:
             registered = self._registered_names(request)
-            calls = self._parse_tool_calls(current_text, registered)
+            calls = self._parse_tool_calls(
+                current_text, registered, self._registered_param_types(request)
+            )
             content, reasoning, content_open, reasoning_open = self._visible_channels(
                 current_text
             )
