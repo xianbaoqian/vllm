@@ -1116,6 +1116,53 @@ class _ModelRegistry:
 
         self.models[model_arch] = model
 
+    def _warn_for_evicted_architectures(
+        self,
+        architectures: list[str],
+        model_config: ModelConfig,
+    ) -> None:
+        """Surface an eviction before the Transformers fallback hides it.
+
+        ``_raise_for_unsupported`` carries the "install the plugin at ..." and
+        "supported until vX.Y" messages, but it only runs once every other
+        resolution path has failed. Under the default ``--model-impl auto`` the
+        Transformers backend is tried first and succeeds for any architecture
+        Transformers implements, so for those models the messages are dead code:
+        the server starts and serves a different implementation, announced only
+        by an INFO line naming the resolved architecture.
+
+        Warn rather than raise. Deployments that work today through the
+        Transformers backend must keep working -- the goal is that the operator
+        is told, not that they are stopped.
+        """
+        if model_config.model_impl != "auto":
+            return
+
+        for arch in architectures:
+            # Registered, so the dedicated implementation is what will be used.
+            # This is the case a plugin is installed to produce.
+            if arch in self.models:
+                continue
+
+            if arch in _OOT_SUPPORTED_MODELS:
+                logger.warning_once(
+                    "Model architecture %s is not supported in-tree anymore. "
+                    "A plugin providing it is available at %s. Without it, vLLM "
+                    "may fall back to a generic implementation whose performance "
+                    "and supported features differ.",
+                    arch,
+                    _OOT_SUPPORTED_MODELS[arch],
+                )
+            elif arch in _PREVIOUSLY_SUPPORTED_MODELS:
+                logger.warning_once(
+                    "Model architecture %s was supported in vLLM until v%s and "
+                    "has since been removed. Without it, vLLM may fall back to a "
+                    "generic implementation whose performance and supported "
+                    "features differ.",
+                    arch,
+                    _PREVIOUSLY_SUPPORTED_MODELS[arch],
+                )
+
     def _raise_for_unsupported(self, architectures: list[str]):
         all_supported_archs = self.get_supported_archs()
 
@@ -1267,6 +1314,8 @@ class _ModelRegistry:
         if not architectures:
             raise ValueError("No model architectures are specified")
 
+        self._warn_for_evicted_architectures(architectures, model_config)
+
         # Require transformers impl
         if model_config.model_impl == "transformers":
             arch = self._try_resolve_transformers(architectures[0], model_config)
@@ -1318,6 +1367,8 @@ class _ModelRegistry:
             architectures = [architectures]
         if not architectures:
             raise ValueError("No model architectures are specified")
+
+        self._warn_for_evicted_architectures(architectures, model_config)
 
         # Require transformers impl
         if model_config.model_impl == "transformers":
