@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import logging
 import warnings
+from types import SimpleNamespace
 
 import pytest
 import torch.cuda
 
+from vllm.logger import _print_warning_once
 from vllm.model_executor.models import (
     is_pooling_model,
     is_text_generation_model,
@@ -17,6 +20,8 @@ from vllm.model_executor.models.adapters import (
 )
 from vllm.model_executor.models.registry import (
     _MULTIMODAL_MODELS,
+    _OOT_SUPPORTED_MODELS,
+    _PREVIOUSLY_SUPPORTED_MODELS,
     _SPECULATIVE_DECODING_MODELS,
     _TEXT_GENERATION_MODELS,
     ModelRegistry,
@@ -180,3 +185,110 @@ def test_hf_registry_coverage():
         "Please add the following architectures to "
         f"`tests/models/registry.py`: {untested_archs}"
     )
+
+
+@pytest.fixture
+def _fresh_warning_cache():
+    """`logger.warning_once` memoises on (msg, *args), so a warning emitted earlier in
+    the session would make these assertions depend on test order."""
+    _print_warning_once.cache_clear()
+    yield
+    _print_warning_once.cache_clear()
+
+
+def test_oot_architecture_warns_and_names_the_plugin(caplog, _fresh_warning_cache):
+    """The plugin pointer must reach the user under the default `--model-impl auto`.
+
+    It is only ever read in `_raise_for_unsupported`, which runs after the Transformers
+    fallback has had its turn. For any architecture Transformers implements the fallback
+    succeeds, so without this warning the operator silently gets a different
+    implementation and the plugin URL is never shown.
+    """
+    arch = next(iter(_OOT_SUPPORTED_MODELS))
+    expected = _OOT_SUPPORTED_MODELS[arch]
+    model_config = SimpleNamespace(model_impl="auto")
+
+    with caplog.at_level(logging.WARNING, logger="vllm.model_executor.models.registry"):
+        ModelRegistry._warn_for_evicted_architectures([arch], model_config)
+
+    assert arch in caplog.text
+    assert expected in caplog.text
+
+
+def test_previously_supported_architecture_warns_with_its_last_version(
+    caplog, _fresh_warning_cache
+):
+    arch = next(iter(_PREVIOUSLY_SUPPORTED_MODELS))
+    version = _PREVIOUSLY_SUPPORTED_MODELS[arch]
+    model_config = SimpleNamespace(model_impl="auto")
+
+    with caplog.at_level(logging.WARNING, logger="vllm.model_executor.models.registry"):
+        ModelRegistry._warn_for_evicted_architectures([arch], model_config)
+
+    assert arch in caplog.text
+    assert version in caplog.text
+
+
+def test_no_warning_once_the_plugin_is_installed(caplog, _fresh_warning_cache):
+    """The case a plugin exists to produce: registered wins, and says nothing."""
+    arch = next(iter(_OOT_SUPPORTED_MODELS))
+    model_config = SimpleNamespace(model_impl="auto")
+
+    ModelRegistry.register_model(
+        arch, "vllm.model_executor.models.llama:LlamaForCausalLM"
+    )
+    try:
+        with caplog.at_level(
+            logging.WARNING, logger="vllm.model_executor.models.registry"
+        ):
+            ModelRegistry._warn_for_evicted_architectures([arch], model_config)
+    finally:
+        ModelRegistry.models.pop(arch, None)
+
+    assert arch not in caplog.text
+
+
+@pytest.mark.parametrize("model_impl", ["transformers", "terratorch"])
+def test_no_warning_when_the_user_chose_the_implementation(
+    model_impl, caplog, _fresh_warning_cache
+):
+    """Only `auto` silently substitutes. If the operator named an implementation, they
+    are not being surprised and do not need telling."""
+    arch = next(iter(_OOT_SUPPORTED_MODELS))
+    model_config = SimpleNamespace(model_impl=model_impl)
+
+    with caplog.at_level(logging.WARNING, logger="vllm.model_executor.models.registry"):
+        ModelRegistry._warn_for_evicted_architectures([arch], model_config)
+
+    assert arch not in caplog.text
+
+
+def test_eviction_tables_are_well_formed():
+    """Neither table had any test coverage before this file. Both are hand-maintained
+    and only ever read on an error path, so a typo in one is invisible until a user
+    hits it."""
+    for arch, url in _OOT_SUPPORTED_MODELS.items():
+        assert arch.isidentifier(), arch
+        assert url.startswith("https://"), (arch, url)
+
+    for arch, version in _PREVIOUSLY_SUPPORTED_MODELS.items():
+        assert arch.isidentifier(), arch
+        parts = version.split(".")
+        assert len(parts) == 3 and all(p.isdigit() for p in parts), (arch, version)
+
+    overlap = set(_OOT_SUPPORTED_MODELS) & set(_PREVIOUSLY_SUPPORTED_MODELS)
+    assert not overlap, (
+        f"{overlap} are in both tables; _raise_for_unsupported checks "
+        "_PREVIOUSLY_SUPPORTED_MODELS first, so the plugin pointer would never show"
+    )
+
+    live = ModelRegistry.get_supported_archs()
+    for table_name, table in (
+        ("_OOT_SUPPORTED_MODELS", _OOT_SUPPORTED_MODELS),
+        ("_PREVIOUSLY_SUPPORTED_MODELS", _PREVIOUSLY_SUPPORTED_MODELS),
+    ):
+        clash = set(table) & set(live)
+        assert not clash, (
+            f"{clash} are both registered in-tree and listed in {table_name}; "
+            "the eviction message is unreachable for them"
+        )
