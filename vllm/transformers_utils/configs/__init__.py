@@ -16,7 +16,6 @@ import importlib
 
 _CLASS_TO_MODULE: dict[str, str] = {
     "AfmoeConfig": "vllm.transformers_utils.configs.afmoe",
-    "ArcticConfig": "vllm.transformers_utils.configs.arctic",
     "AXK1Config": "vllm.transformers_utils.configs.AXK1",
     "BagelConfig": "vllm.transformers_utils.configs.bagel",
     "CheersConfig": "vllm.transformers_utils.configs.cheers",
@@ -74,6 +73,10 @@ _CLASS_TO_MODULE: dict[str, str] = {
     "KimiLinearConfig": "vllm.transformers_utils.configs.kimi_linear",
     "KimiVLConfig": "vllm.transformers_utils.configs.kimi_vl",
     "KimiK25Config": "vllm.transformers_utils.configs.kimi_k25",
+    "MuseGlimmerConfig": "vllm.transformers_utils.configs.muse_glimmer",
+    "MuseGlimmerTextConfig": "vllm.transformers_utils.configs.muse_glimmer",
+    "MuseGlimmerVisionConfig": "vllm.transformers_utils.configs.muse_glimmer",
+    "MuseGlimmerAssistantConfig": "vllm.transformers_utils.configs.muse_glimmer",
     "KimiK3Config": "vllm.transformers_utils.configs.kimi_k3",
     "KimiK3VisionConfig": "vllm.transformers_utils.configs.kimi_k3",
     "NemotronConfig": "vllm.transformers_utils.configs.nemotron",
@@ -108,7 +111,6 @@ _CLASS_TO_MODULE: dict[str, str] = {
 
 __all__ = [
     "AfmoeConfig",
-    "ArcticConfig",
     "AXK1Config",
     "BagelConfig",
     "CheersConfig",
@@ -162,6 +164,10 @@ __all__ = [
     "KimiLinearConfig",
     "KimiVLConfig",
     "KimiK25Config",
+    "MuseGlimmerConfig",
+    "MuseGlimmerTextConfig",
+    "MuseGlimmerVisionConfig",
+    "MuseGlimmerAssistantConfig",
     "KimiK3Config",
     "KimiK3VisionConfig",
     "NemotronConfig",
