@@ -1025,14 +1025,5 @@ class HunYuanMoEV1Base(HunyuanV1ModelBase, MixtureOfExperts):
         return self.model.get_expert_mapping()
 
 
-class HunYuanDenseV1Base(HunyuanV1ModelBase):
-    def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
-        super().__init__(vllm_config=vllm_config, prefix=prefix)
-
-
-class HunYuanDenseV1ForCausalLM(HunYuanDenseV1Base):
-    pass
-
-
 class HunYuanMoEV1ForCausalLM(HunYuanMoEV1Base):
     pass
