@@ -26,7 +26,6 @@
 
 from collections.abc import Iterable
 from itertools import islice
-from typing import ClassVar
 
 import torch
 from torch import nn
@@ -274,7 +273,7 @@ class LlamaDecoderLayer(nn.Module):
         # By default, Llama uses causal attention as it is a decoder-only model.
         # You can override the HF config with `is_causal=False` to enable
         # bidirectional attention, which is used in some embedding models
-        # (e.g. parasail-ai/GritLM-7B-vllm)
+        # (e.g. nvidia/llama-nemotron-embed-1b-v2)
         if getattr(config, "is_causal", True):
             attn_type = AttentionType.DECODER
         else:
@@ -343,7 +342,7 @@ class LlamaDecoderLayer(nn.Module):
     },
 )
 class LlamaModel(nn.Module, EagleModelMixin):
-    hf_to_vllm_mapper: ClassVar[WeightsMapper] = WeightsMapper(
+    hf_to_vllm_mapper = WeightsMapper(
         orig_to_new_stacked={
             # weight_name: (param_name, shard_id)
             ".q_proj": (".qkv_proj", "q"),
@@ -534,10 +533,7 @@ class LlamaForCausalLM(
         return logits
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
-        loader = AutoWeightsLoader(
-            self,
-            skip_prefixes=(["lm_head."] if self.config.tie_word_embeddings else None),
-        )
+        loader = AutoWeightsLoader(self)
         return loader.load_weights(weights)
 
 
