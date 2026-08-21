@@ -140,24 +140,6 @@ def run_blip2(questions: list[str], modality: str) -> ModelRequestData:
     )
 
 
-# Chameleon
-def run_chameleon(questions: list[str], modality: str) -> ModelRequestData:
-    assert modality == "image"
-
-    prompts = [f"{question}<image>" for question in questions]
-    engine_args = EngineArgs(
-        model="facebook/chameleon-7b",
-        max_model_len=4096,
-        max_num_seqs=2,
-        limit_mm_per_prompt={modality: 1},
-    )
-
-    return ModelRequestData(
-        engine_args=engine_args,
-        prompts=prompts,
-    )
-
-
 # Cheers
 def run_cheers(questions: list[str], modality: str) -> ModelRequestData:
     assert modality == "image"
@@ -2331,7 +2313,6 @@ model_example_map = {
     "cheers": run_cheers,
     "bee": run_bee,
     "blip-2": run_blip2,
-    "chameleon": run_chameleon,
     "command_a_vision": run_command_a_vision,
     "deepseek_vl_v2": run_deepseek_vl2,
     "deepseek_ocr": run_deepseek_ocr,
