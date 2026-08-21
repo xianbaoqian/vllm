@@ -373,7 +373,6 @@ class ModelArchConfigConvertorBase:
             "molmo2",
             "moondream3",
             "paligemma",
-            "umm",
         )
         if not hasattr(self.hf_config, "model_type"):
             return False
